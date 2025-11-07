@@ -1,0 +1,31 @@
+{
+  "productName": "praetor-desk",
+  "version": "0.1.0",
+  "identifier": "com.praetor.desk",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Praetor Desk",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "label": "main"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {},
+  "bundle": {
+    "active": false
+  }
+}
+
