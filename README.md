@@ -1,133 +1,136 @@
 <p align="center">
-  <img src="docs/assets/praetor-desk-banner.jpg" alt="Praetor Desk" width="720" />
+  <img src="docs/assets/praetor-desk-banner.png" alt="Praetor Desk" width="720" />
 </p>
 
-<h1 align="center">Praetor Desk</h1>
-<p align="center"><em>A local-first command center for tracking airdrops, projects, ideas, home tasks, and research.</em></p>
+<h1 align="center">���️ Praetor Desk: Local-First Command Center for Neurospicy Operators</h1>
+<p align="center"><em>Plan airdrops, manage projects, capture ideas, run research, and keep home life on track — all from a single desktop workspace.</em></p>
 
 ---
 
-## ��� Overview
+## �� Table of Contents
+- [Overview](#-overview)
+- [Feature Highlights](#-feature-highlights)
+- [Modules](#-modules)
+- [Tech Stack](#-tech-stack)
+- [Setup](#-setup)
+- [Daily Workflow](#-daily-workflow)
+- [Architecture](#-architecture)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-Praetor Desk is a Tauri 2 desktop application built with React 18 and SQLite. It is optimised for a local-first workflow so you can plan, research, and track work without cloud dependencies. Each tab is tailored for a specific focus area and shares a consistent, modern UI built on Tailwind design tokens.
+---
 
-### Key Tabs
+## ��� Overview
+In ancient Rome, a *Praetor* orchestrated civic order. **Praetor Desk** channels that spirit: a local-first desktop application where solopreneurs, founders, and ADHD superhumans can coordinate crypto airdrops, projects, ideas, research, and household duties without browser chaos or cloud lock-in.
 
-| Tab | Purpose |
+Everything runs on your machine using **Tauri 2**, **React 18**, and **SQLite**. Data stays local, performance stays snappy, and each tab is purpose-built yet visually cohesive.
+
+---
+
+## ⚔️ Feature Highlights
+- **Unified Workspace** – Six polished tabs with consistent UI patterns for quick context switching.
+- **Airdrop Intelligence** – Track quests, wallet states, and task progress for every campaign.
+- **Project Momentum** – Manage deliverables with inline task adds, status pills, and delightful glassmorphism.
+- **Idea Vault** – Capture sparks with notes, timestamps, and low-friction entry.
+- **Brainstorm Superpowers** – Run Context7 → Exa research to gather up-to-date references in a single click.
+- **Household HQ** – Keep chores and reminders actionable, not floating in your head.
+- **Google OAuth UI** – Ready for plug-and-play calendar sync once backend OAuth2 5.x flow is finalised.
+- **Local-First SQLite** – Everything stored in `praetor_desk.db` under your OS app data directory.
+
+---
+
+## ��� Modules
+| Tab | What it Delivers |
 | --- | --- |
-| **Airdrops** | Track crypto airdrops, wallets, and daily quests with progress tracking. |
-| **Projects** | Organise work into projects with quick-add tasks and status tracking. |
-| **Ideas** | Capture and iterate on ideas without leaving the desk. |
-| **Brainstorm** | Run Context7 ➜ Exa research queries for up-to-date references. |
-| **House** | Keep personal chores and home reminders in one place. |
-| **Calendar** | Google OAuth calendar integration (UI ready, backend OAuth flow in progress). |
+| **Airdrops** | Campaign cards with wallet chips, chain badges, progress bars, daily quest toggles, and upcoming task counts. |
+| **Projects** | Project cards with status pills, inline task input, completion toggles, and glassmorphism UI. |
+| **Ideas** | Idea grid with quick capture, optional notes, creation timestamps, and gentle deletion confirmations. |
+| **Brainstorm** | Research surface with call-to-action header, textarea prompts, and rich card outputs for Context7 + Exa MCP servers. |
+| **House** | Habit tracker for chores and tools — styled checkboxes, card actions, and note snippets. |
+| **Calendar** | Google OAuth “Sign in with Google” experience with stubbed backend (UI is production-ready, token exchange coming soon). |
 
 ---
 
-## ��� Tech Stack
-
-- **Tauri 2** (Rust backend, WebView front-end shell)
-- **React 18 + TypeScript** for UI
-- **Tailwind-inspired tokens** for consistent theming
-- **SQLite with SQLx** for local storage
-
----
-
-## ��� Prerequisites
-
-- [Node.js](https://nodejs.org/) 20+
-- [pnpm](https://pnpm.io/) (or npm/yarn)
-- [Rust](https://www.rust-lang.org/) toolchain with Cargo
-- Optional: Context7 + Exa MCP servers for Brainstorm tab research
+## ��� Tech Stack
+- **Frontend:** React 18, TypeScript, Vite
+- **Desktop Shell:** Tauri 2 (Rust), custom window controls
+- **Styling:** Tailwind-inspired design tokens, bespoke card components, `lucide-react` icons
+- **State & API:** Local React state + Tauri command invocations
+- **Persistence:** SQLite via SQLx migrations (`src-tauri/src/database.rs`)
+- **Research Integrations:** Context7 MCP + Exa MCP (optional)
 
 ---
 
 ## ⚙️ Setup
-
 ```bash
-pnpm install          # install dependencies
-pnpm tauri dev        # run the desktop app in development
+git clone https://github.com/enstest1/Praetor_Desk.git
+cd Praetor_Desk
+pnpm install              # or npm install
+docs/assets/praetor-desk-banner.png  # ensure banner image is present
+pnpm tauri dev            # run the app in development
 ```
 
-> **Tip:** The database is created automatically at `AppData/praetor_desk.db` (platform dependent).
+### Database
+SQLite is auto-created at app start: `AppData/Local/praetor_desk/praetor_desk.db` (platform-specific). All migrations live in `src-tauri/src/database.rs`.
 
----
-
-## ��� Building a Release
-
+### Optional MCP Servers (Brainstorm Tab)
 ```bash
-pnpm tauri build
+# in separate shells
+context7-mcp --port 7080
+exa-mcp --port 7081
 ```
-
-The signed executable is emitted to `src-tauri/target/release/`.
-
----
-
-## ��� Brainstorm (Context7 + Exa)
-
-1. Start your MCP servers locally:
-   ```bash
-   # in separate terminals
-   context7-mcp --port 7080
-   exa-mcp --port 7081
-   ```
-2. Configure them inside Cursor’s MCP settings (if using Cursor Agent) or point the Brainstorm tab to the endpoints directly.
-3. Enter a query and click **Fetch Latest Docs** to collect responses.
+Then configure within the Brainstorm tab or your Cursor MCP settings.
 
 ---
 
-## ��� Calendar Auth (Status)
-
-The Calendar tab already exposes a Google-style “Sign in with Google” button and captures OAuth credentials. The backend OAuth2 5.x flow migration is still pending, so the token exchange is currently stubbed. You can safely design and test UI layouts now; backend work will follow.
+## ��� Daily Workflow
+1. **Airdrops Tab** – Review campaign cards, connect wallets, tick off quests.
+2. **Projects Tab** – Add quick tasks, change statuses, focus on the day’s deliverables.
+3. **Ideas Tab** – Capture sparks and link to later actions.
+4. **Brainstorm Tab** – Run Context7 → Exa research to gather citations for content or outreach.
+5. **House Tab** – Keep personal life on track with checklists.
+6. **Calendar Tab** – Use Google OAuth UI (backend finishing soon) to pull upcoming events.
 
 ---
 
-## ��� Project Structure
-
+## ��� Architecture
 ```
 praetor-desk/
-├── src/                    # React UI
-│   ├── components/         # shared UI components
-│   ├── tabs/               # tab screens
-│   ├── api/                # frontend invoke wrappers
-│   └── App.tsx             # application shell
-├── src-tauri/              # Rust backend
-│   ├── src/
-│   │   ├── commands/       # Tauri commands (CRUD, OAuth, research)
-│   │   ├── models/         # SQLx models
-│   │   ├── database.rs     # migrations + schema
-│   │   └── oauth.rs        # OAuth helpers (stubbed)
-│   └── Cargo.toml          # Rust dependencies
-└── README.md               # you are here
+├── src/                        # React UI
+│   ├── components/             # Shared UI atoms & molecules
+│   ├── tabs/                   # Screen modules for each workspace area
+│   └── api/                    # Type-safe invoke wrappers
+├── src-tauri/                  # Rust backend
+│   ├── src/commands/           # Tauri command handlers (CRUD, research, OAuth stubs)
+│   ├── src/models/             # SQLx structs
+│   ├── src/database.rs         # Migration/runtime schema
+│   └── tauri.conf.json         # Window + bundler config
+└── docs/assets/                # README visuals (banner, future screenshots)
 ```
 
 ---
 
-## ��� Banner Art
-
-The README banner is located at `docs/assets/praetor-desk-banner.jpg`. If you haven’t added it yet, drop the provided artwork into that path to avoid a broken image in GitHub.
+## ��� Roadmap
+- [ ] Complete Google OAuth2 5.x migration + token storage.
+- [ ] Persist Brainstorm queries/citations with filterable history.
+- [ ] Add Kanban board + OmniSearch command palette (spec already drafted).
+- [ ] Ship Windows/macOS installers with auto-update pipeline.
+- [ ] Accessibility audit & keyboard shortcut palette.
 
 ---
 
 ## ��� Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Run `pnpm tauri dev` and verify your changes
-4. Commit with conventional messages
-5. Submit a PR with screenshots for UI updates
-
----
-
-## ��� Roadmap Highlights
-
-- [ ] Complete Google OAuth2 5.x migration and token storage
-- [ ] Persist Brainstorm queries + citations locally
-- [ ] Add Kanban board + Omnisearch (design spec ready)
-- [ ] Package icons + auto-updaters
+Pull requests welcome! Please:
+1. Fork the repository.
+2. Create a feature branch `git checkout -b feature/awesome`.
+3. `pnpm tauri dev` and verify UI/DB changes.
+4. Commit with clear messages and attach screenshots for UI tweaks.
+5. Open a PR.
 
 ---
 
 ## ��� License
-
 MIT © Praetor Desk Team
+
+> “Order your work like a Praetor — calm, decisive, and always one step ahead.”
