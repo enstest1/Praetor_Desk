@@ -12,8 +12,8 @@ interface AirdropCardProps {
   onDelete: (id: number) => void;
   onMarkTaskDone: (taskId: number, airdropId: number) => void;
   onUpdateWallet: (id: number, walletAddress: string) => void;
-  onAddTask: (airdropId: number, title: string) => void;
-  onReloadTasks: (airdropId: number) => void;
+  onAddTask: (airdropId: number, title: string) => Promise<void>;
+  onReloadTasks: (airdropId: number) => Promise<void>;
 }
 
 const shortAddress = (addr: string) => (addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "");

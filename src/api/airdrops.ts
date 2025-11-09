@@ -91,4 +91,7 @@ export async function markTaskDoneToday(taskId: number, airdropId: number): Prom
   return invoke("mark_task_done_today", { taskId, airdropId });
 }
 
+export async function reorderAirdrops(items: { id: number; position: number }[]): Promise<void> {
+  return invoke("reorder_airdrops", { req: { items } });
+}
 

@@ -33,21 +33,15 @@ function ProjectsTab() {
     try {
       const data = await listProjects();
       setProjects(data);
-      for (const project of data) {
-        loadTasks(project.id);
-      }
+      await Promise.all(data.map((project) => loadTasks(project.id)));
     } catch (error) {
       console.error("Failed to load projects:", error);
     }
   };
 
   const loadTasks = async (projectId: number) => {
-    try {
-      const taskList = await listProjectTasks(projectId);
-      setTasks((prev) => ({ ...prev, [projectId]: taskList }));
-    } catch (error) {
-      console.error("Failed to load tasks:", error);
-    }
+    const taskList = await listProjectTasks(projectId);
+    setTasks((prev) => ({ ...prev, [projectId]: taskList }));
   };
 
   const handleCreateProject = async () => {
@@ -64,7 +58,7 @@ function ProjectsTab() {
       });
       setNewProject({ name: "", description: "", status: "active" });
       setShowAddForm(false);
-      loadProjects();
+      await loadProjects();
     } catch (error) {
       console.error("Failed to create project:", error);
       alert("Failed to create project");
@@ -75,7 +69,7 @@ function ProjectsTab() {
     if (!confirm("Delete this project?")) return;
     try {
       await deleteProject(id);
-      loadProjects();
+      await loadProjects();
     } catch (error) {
       console.error("Failed to delete project:", error);
       alert("Failed to delete project");
@@ -88,22 +82,41 @@ function ProjectsTab() {
         id: task.id,
         done: !task.done,
       });
-      loadTasks(task.project_id);
+      await loadTasks(task.project_id);
     } catch (error) {
       console.error("Failed to update task:", error);
+      alert("Failed to update task");
     }
   };
 
   const handleAddTask = async (projectId: number, title: string) => {
     if (!title.trim()) return;
+    const taskList = tasks[projectId] || [];
     try {
-      const taskList = tasks[projectId] || [];
-      await createProjectTask({
+      const id = await createProjectTask({
         project_id: projectId,
         title: title.trim(),
         order: taskList.length,
       });
-      loadTasks(projectId);
+
+      // optimistic update to keep UI snappy
+      setTasks((prev) => ({
+        ...prev,
+        [projectId]: [
+          ...(prev[projectId] || []),
+          {
+            id,
+            project_id: projectId,
+            title: title.trim(),
+            done: false,
+            order: taskList.length,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ],
+      }));
+
+      await loadTasks(projectId);
     } catch (error) {
       console.error("Failed to create task:", error);
       alert("Failed to create task");
@@ -114,9 +127,10 @@ function ProjectsTab() {
     if (!confirm("Delete this task?")) return;
     try {
       await deleteProjectTask(taskId);
-      loadTasks(projectId);
+      await loadTasks(projectId);
     } catch (error) {
       console.error("Failed to delete task:", error);
+      alert("Failed to delete task");
     }
   };
 
@@ -279,14 +293,20 @@ function TaskInput({
   onAdd,
 }: {
   projectId: number;
-  onAdd: (projectId: number, title: string) => void;
+  onAdd: (projectId: number, title: string) => Promise<void>;
 }) {
   const [value, setValue] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    if (!value.trim()) return;
-    onAdd(projectId, value.trim());
-    setValue("");
+  const handleSubmit = async () => {
+    if (submitting || !value.trim()) return;
+    setSubmitting(true);
+    try {
+      await onAdd(projectId, value.trim());
+      setValue("");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -294,21 +314,23 @@ function TaskInput({
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
+        onKeyDown={async (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            handleSubmit();
+            await handleSubmit();
           }
         }}
         placeholder="New task"
         className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+        disabled={submitting}
       />
       <button
         onClick={handleSubmit}
         className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10"
+        disabled={submitting}
       >
         <Plus className="h-3 w-3" />
-        Add
+        {submitting ? "Adding" : "Add"}
       </button>
     </div>
   );

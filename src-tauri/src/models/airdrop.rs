@@ -22,6 +22,7 @@ pub struct Airdrop {
     pub chain: Option<String>,
     #[sqlx(default)]
     pub wallet_address: Option<String>,
+    pub position: i64,
     pub notes: Option<String>,
     pub active: bool,
     pub created_at: DateTime<Utc>,

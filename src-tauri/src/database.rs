@@ -29,6 +29,7 @@ pub async fn migrate(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             airdrop_type_id INTEGER,
             chain TEXT,
             wallet_address TEXT,
+            position INTEGER NOT NULL DEFAULT 0,
             notes TEXT,
             active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
@@ -49,6 +50,33 @@ pub async fn migrate(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await
     .ok(); // Ignore error if column already exists
+
+    sqlx::query(
+        r#"
+        ALTER TABLE airdrops ADD COLUMN position INTEGER NOT NULL DEFAULT 0
+        "#,
+    )
+    .execute(pool)
+    .await
+    .ok(); // Ignore error if column already exists
+
+    // Ensure existing rows have sequential positions
+    if let Ok(ids) = sqlx::query_scalar::<_, i64>(
+        "SELECT id FROM airdrops ORDER BY position ASC, created_at ASC",
+    )
+    .fetch_all(pool)
+    .await
+    {
+        for (idx, id) in ids.into_iter().enumerate() {
+            let _ = sqlx::query(
+                "UPDATE airdrops SET position = ?, updated_at = updated_at WHERE id = ?",
+            )
+            .bind(idx as i64)
+            .bind(id)
+            .execute(pool)
+            .await;
+        }
+    }
 
     sqlx::query(
         r#"

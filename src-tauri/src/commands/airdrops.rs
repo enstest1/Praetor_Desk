@@ -44,7 +44,9 @@ pub struct CreateAirdropDailyTaskRequest {
 
 #[tauri::command]
 pub async fn list_airdrops(state: State<'_, crate::AppState>) -> Result<Vec<Airdrop>, String> {
-    let airdrops = sqlx::query_as::<_, Airdrop>("SELECT * FROM airdrops ORDER BY created_at DESC")
+    let airdrops = sqlx::query_as::<_, Airdrop>(
+        "SELECT * FROM airdrops ORDER BY position ASC, created_at ASC",
+    )
         .fetch_all(&state.db)
         .await
         .map_err(|e| format!("Failed to fetch airdrops: {}", e))?;
@@ -58,11 +60,17 @@ pub async fn create_airdrop(
     req: CreateAirdropRequest,
 ) -> Result<i64, String> {
     let now = Utc::now();
+    let position = sqlx::query_scalar::<_, i64>(
+        "SELECT COALESCE(MAX(position), -1) + 1 FROM airdrops",
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(0);
 
     sqlx::query(
         r#"
-        INSERT INTO airdrops (name, url, airdrop_type_id, chain, wallet_address, notes, active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO airdrops (name, url, airdrop_type_id, chain, wallet_address, position, notes, active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&req.name)
@@ -70,6 +78,7 @@ pub async fn create_airdrop(
     .bind(&req.airdrop_type_id)
     .bind(&req.chain)
     .bind(&req.wallet_address)
+    .bind(position)
     .bind(&req.notes)
     .bind(if req.active { 1 } else { 0 })
     .bind(now.to_rfc3339())
@@ -149,6 +158,47 @@ pub async fn update_airdrop(
     q.execute(&state.db)
         .await
         .map_err(|e| format!("Failed to update airdrop: {}", e))?;
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReorderAirdropsRequest {
+    pub items: Vec<AirdropOrderItem>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AirdropOrderItem {
+    pub id: i64,
+    pub position: i64,
+}
+
+#[tauri::command]
+pub async fn reorder_airdrops(
+    state: State<'_, crate::AppState>,
+    req: ReorderAirdropsRequest,
+) -> Result<(), String> {
+    let mut tx = state
+        .db
+        .begin()
+        .await
+        .map_err(|e| format!("Failed to start transaction: {}", e))?;
+
+    for item in req.items {
+        sqlx::query(
+            "UPDATE airdrops SET position = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(item.position)
+        .bind(Utc::now().to_rfc3339())
+        .bind(item.id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| format!("Failed to update airdrop position: {}", e))?;
+    }
+
+    tx.commit()
+        .await
+        .map_err(|e| format!("Failed to commit reorder: {}", e))?;
 
     Ok(())
 }

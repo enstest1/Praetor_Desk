@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, type CSSProperties } from "react";
 import {
   listAirdrops,
   createAirdrop,
@@ -8,6 +8,7 @@ import {
   listAirdropDailyTasks,
   createAirdropDailyTask,
   markTaskDoneToday,
+  reorderAirdrops,
   type Airdrop,
   type AirdropType,
   type AirdropDailyTask,
@@ -15,6 +16,21 @@ import {
 import { PageHeader } from "../components/layout/PageHeader";
 import { AirdropCard } from "../components/airdrop/AirdropCard";
 import { NewAirdropModal } from "../components/airdrop/NewAirdropModal";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 function AirdropsTab() {
   const [airdrops, setAirdrops] = useState<Airdrop[]>([]);
@@ -23,19 +39,24 @@ function AirdropsTab() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    })
+  );
+
   useEffect(() => {
     loadAirdrops();
     loadTypes();
   }, []);
 
+  const canReorder = useMemo(() => searchQuery.trim().length === 0, [searchQuery]);
+
   const loadAirdrops = async () => {
     try {
       const data = await listAirdrops();
       setAirdrops(data);
-      // Load daily tasks for each airdrop
-      for (const airdrop of data) {
-        loadDailyTasks(airdrop.id);
-      }
+      await Promise.all(data.map((airdrop) => loadDailyTasks(airdrop.id)));
     } catch (error) {
       console.error("Failed to load airdrops:", error);
     }
@@ -53,14 +74,9 @@ function AirdropsTab() {
   const loadDailyTasks = async (airdropId: number) => {
     try {
       const tasks = await listAirdropDailyTasks(airdropId);
-      setDailyTasks((prev) => {
-        const updated = { ...prev };
-        updated[airdropId] = tasks;
-        return updated;
-      });
+      setDailyTasks((prev) => ({ ...prev, [airdropId]: tasks }));
     } catch (error) {
       console.error("Failed to load daily tasks:", error);
-      throw error;
     }
   };
 
@@ -68,7 +84,7 @@ function AirdropsTab() {
     try {
       await createAirdrop(data);
       setShowAddModal(false);
-      loadAirdrops();
+      await loadAirdrops();
     } catch (error) {
       console.error("Failed to create airdrop:", error);
       alert("Failed to create airdrop");
@@ -79,7 +95,7 @@ function AirdropsTab() {
     if (!confirm("Are you sure you want to delete this airdrop?")) return;
     try {
       await deleteAirdrop(id);
-      loadAirdrops();
+      await loadAirdrops();
     } catch (error) {
       console.error("Failed to delete airdrop:", error);
       alert("Failed to delete airdrop");
@@ -89,7 +105,7 @@ function AirdropsTab() {
   const handleMarkTaskDone = async (taskId: number, airdropId: number) => {
     try {
       await markTaskDoneToday(taskId, airdropId);
-      loadDailyTasks(airdropId);
+      await loadDailyTasks(airdropId);
     } catch (error) {
       console.error("Failed to mark task done:", error);
       alert("Failed to mark task as done");
@@ -99,41 +115,65 @@ function AirdropsTab() {
   const handleAddTask = async (airdropId: number, title: string) => {
     try {
       const currentTasks = dailyTasks[airdropId] || [];
-      const nextOrder = currentTasks.length > 0 
-        ? Math.max(...currentTasks.map(t => t.order)) + 1 
+      const nextOrder = currentTasks.length > 0
+        ? Math.max(...currentTasks.map((t) => t.order)) + 1
         : 0;
-      
-      console.log("Creating task:", { airdropId, title, order: nextOrder });
-      const taskId = await createAirdropDailyTask({
+
+      await createAirdropDailyTask({
         airdrop_id: airdropId,
         title,
         order: nextOrder,
       });
-      console.log("Task created with ID:", taskId);
-      
-      // Reload tasks immediately after creation
       await loadDailyTasks(airdropId);
-      console.log("Tasks reloaded for airdrop:", airdropId);
     } catch (error) {
       console.error("Failed to create task:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert(`Failed to create task: ${errorMessage}`);
-      throw error; // Re-throw so UI can handle it
+      throw error;
     }
   };
 
   const handleUpdateWallet = async (id: number, walletAddress: string) => {
     try {
       await updateAirdrop({ id, wallet_address: walletAddress });
-      loadAirdrops();
+      await loadAirdrops();
     } catch (error) {
       console.error("Failed to update wallet address:", error);
       alert("Failed to update wallet address");
     }
   };
 
-  const filteredAirdrops = airdrops.filter((airdrop) =>
-    airdrop.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const handleDragEnd = async (event: DragEndEvent) => {
+    if (!canReorder) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = airdrops.findIndex((item) => item.id === active.id);
+    const newIndex = airdrops.findIndex((item) => item.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const newOrder = arrayMove(airdrops, oldIndex, newIndex).map((item, index) => ({
+      ...item,
+      position: index,
+    }));
+
+    setAirdrops(newOrder);
+
+    try {
+      await reorderAirdrops(newOrder.map(({ id }, index) => ({ id, position: index })));
+    } catch (error) {
+      console.error("Failed to reorder airdrops:", error);
+      alert("Failed to reorder airdrops");
+      await loadAirdrops();
+    }
+  };
+
+  const filteredAirdrops = useMemo(
+    () =>
+      airdrops.filter((airdrop) =>
+        airdrop.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [airdrops, searchQuery]
   );
 
   return (
@@ -146,7 +186,6 @@ function AirdropsTab() {
         }}
       />
 
-      {/* Search */}
       {airdrops.length > 0 && (
         <div className="mb-6">
           <input
@@ -159,22 +198,33 @@ function AirdropsTab() {
         </div>
       )}
 
-      {/* Airdrops grid */}
       {filteredAirdrops.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredAirdrops.map((airdrop) => (
-            <AirdropCard
-              key={airdrop.id}
-              airdrop={airdrop}
-              dailyTasks={dailyTasks[airdrop.id] || []}
-              onDelete={handleDelete}
-              onMarkTaskDone={handleMarkTaskDone}
-              onUpdateWallet={handleUpdateWallet}
-              onAddTask={handleAddTask}
-              onReloadTasks={loadDailyTasks}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={filteredAirdrops.map((item) => item.id)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredAirdrops.map((airdrop) => (
+                <SortableAirdropCard
+                  key={airdrop.id}
+                  airdrop={airdrop}
+                  dailyTasks={dailyTasks[airdrop.id] || []}
+                  onDelete={handleDelete}
+                  onMarkTaskDone={handleMarkTaskDone}
+                  onUpdateWallet={handleUpdateWallet}
+                  onAddTask={handleAddTask}
+                  onReloadTasks={loadDailyTasks}
+                  disabled={!canReorder}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       ) : (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
           <p className="text-slate-400">
@@ -191,6 +241,37 @@ function AirdropsTab() {
         onSubmit={handleCreate}
         types={types}
       />
+    </div>
+  );
+}
+
+interface SortableCardProps {
+  airdrop: Airdrop;
+  dailyTasks: AirdropDailyTask[];
+  onDelete: (id: number) => void;
+  onMarkTaskDone: (taskId: number, airdropId: number) => void;
+  onUpdateWallet: (id: number, walletAddress: string) => void;
+  onAddTask: (airdropId: number, title: string) => Promise<void>;
+  onReloadTasks: (airdropId: number) => Promise<void>;
+  disabled: boolean;
+}
+
+function SortableAirdropCard({ disabled, ...props }: SortableCardProps) {
+  const { airdrop } = props;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: airdrop.id,
+    disabled,
+  });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <AirdropCard {...props} />
     </div>
   );
 }
