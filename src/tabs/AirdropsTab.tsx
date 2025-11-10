@@ -7,6 +7,7 @@ import {
   listAirdropTypes,
   listAirdropDailyTasks,
   createAirdropDailyTask,
+  deleteAirdropDailyTask,
   markTaskDoneToday,
   reorderAirdrops,
   type Airdrop,
@@ -133,6 +134,20 @@ function AirdropsTab() {
     }
   };
 
+  const handleDeleteTask = async (taskId: number, airdropId: number) => {
+    if (!confirm("Delete this daily task?")) {
+      return;
+    }
+
+    try {
+      await deleteAirdropDailyTask(taskId);
+      await loadDailyTasks(airdropId);
+    } catch (error) {
+      console.error("Failed to delete daily task:", error);
+      alert("Failed to delete daily task");
+    }
+  };
+
   const handleUpdateWallet = async (id: number, walletAddress: string) => {
     try {
       await updateAirdrop({ id, wallet_address: walletAddress });
@@ -218,6 +233,7 @@ function AirdropsTab() {
                   onMarkTaskDone={handleMarkTaskDone}
                   onUpdateWallet={handleUpdateWallet}
                   onAddTask={handleAddTask}
+                  onDeleteTask={handleDeleteTask}
                   onReloadTasks={loadDailyTasks}
                   disabled={!canReorder}
                 />
@@ -252,13 +268,21 @@ interface SortableCardProps {
   onMarkTaskDone: (taskId: number, airdropId: number) => void;
   onUpdateWallet: (id: number, walletAddress: string) => void;
   onAddTask: (airdropId: number, title: string) => Promise<void>;
+  onDeleteTask: (taskId: number, airdropId: number) => Promise<void>;
   onReloadTasks: (airdropId: number) => Promise<void>;
   disabled: boolean;
 }
 
 function SortableAirdropCard({ disabled, ...props }: SortableCardProps) {
   const { airdrop } = props;
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: airdrop.id,
     disabled,
   });
@@ -271,7 +295,7 @@ function SortableAirdropCard({ disabled, ...props }: SortableCardProps) {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <AirdropCard {...props} />
+      <AirdropCard {...props} isDragging={isDragging} />
     </div>
   );
 }

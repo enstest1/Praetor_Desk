@@ -45,7 +45,7 @@ export async function deleteProject(id: number): Promise<void> {
 }
 
 export async function listProjectTasks(projectId: number): Promise<ProjectTask[]> {
-  return invoke("list_project_tasks", { project_id: projectId });
+  return invoke("list_project_tasks", { project_id: projectId, projectId });
 }
 
 export async function createProjectTask(data: {

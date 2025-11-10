@@ -69,6 +69,7 @@ pub fn run() {
             // Airdrop Daily Tasks
             commands::airdrops::list_airdrop_daily_tasks,
             commands::airdrops::create_airdrop_daily_task,
+            commands::airdrops::delete_airdrop_daily_task,
             commands::airdrops::mark_task_done_today,
             // Projects
             commands::projects::list_projects,

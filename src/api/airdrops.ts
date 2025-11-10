@@ -87,6 +87,10 @@ export async function createAirdropDailyTask(data: {
   return invoke("create_airdrop_daily_task", { req: data });
 }
 
+export async function deleteAirdropDailyTask(id: number): Promise<void> {
+  return invoke("delete_airdrop_daily_task", { id });
+}
+
 export async function markTaskDoneToday(taskId: number, airdropId: number): Promise<void> {
   return invoke("mark_task_done_today", { taskId, airdropId });
 }

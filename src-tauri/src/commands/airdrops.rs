@@ -43,6 +43,20 @@ pub struct CreateAirdropDailyTaskRequest {
 }
 
 #[tauri::command]
+pub async fn delete_airdrop_daily_task(
+    state: State<'_, crate::AppState>,
+    id: i64,
+) -> Result<(), String> {
+    sqlx::query("DELETE FROM airdrop_daily_tasks WHERE id = ?")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| format!("Failed to delete daily task: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn list_airdrops(state: State<'_, crate::AppState>) -> Result<Vec<Airdrop>, String> {
     let airdrops = sqlx::query_as::<_, Airdrop>(
         "SELECT * FROM airdrops ORDER BY position ASC, created_at ASC",

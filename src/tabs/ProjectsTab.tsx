@@ -61,7 +61,8 @@ function ProjectsTab() {
       await loadProjects();
     } catch (error) {
       console.error("Failed to create project:", error);
-      alert("Failed to create project");
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Failed to create project: ${message}`);
     }
   };
 
@@ -72,7 +73,8 @@ function ProjectsTab() {
       await loadProjects();
     } catch (error) {
       console.error("Failed to delete project:", error);
-      alert("Failed to delete project");
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Failed to delete project: ${message}`);
     }
   };
 
@@ -85,7 +87,8 @@ function ProjectsTab() {
       await loadTasks(task.project_id);
     } catch (error) {
       console.error("Failed to update task:", error);
-      alert("Failed to update task");
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Failed to update task: ${message}`);
     }
   };
 
@@ -119,7 +122,8 @@ function ProjectsTab() {
       await loadTasks(projectId);
     } catch (error) {
       console.error("Failed to create task:", error);
-      alert("Failed to create task");
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Failed to create task: ${message}`);
     }
   };
 
@@ -130,7 +134,8 @@ function ProjectsTab() {
       await loadTasks(projectId);
     } catch (error) {
       console.error("Failed to delete task:", error);
-      alert("Failed to delete task");
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Failed to delete task: ${message}`);
     }
   };
 

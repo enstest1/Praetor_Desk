@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Rocket, Wallet, MoreVertical, Copy, Link2, CheckCircle2, Circle, Plus } from "lucide-react";
+import {
+  Rocket,
+  Wallet,
+  MoreVertical,
+  Copy,
+  Link2,
+  CheckCircle2,
+  Circle,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { clsx } from "clsx";
 import { StatusPill } from "../ui/StatusPill";
 import { ChainBadge } from "../ui/ChainBadge";
@@ -14,6 +24,8 @@ interface AirdropCardProps {
   onUpdateWallet: (id: number, walletAddress: string) => void;
   onAddTask: (airdropId: number, title: string) => Promise<void>;
   onReloadTasks: (airdropId: number) => Promise<void>;
+  onDeleteTask: (taskId: number, airdropId: number) => Promise<void>;
+  isDragging?: boolean;
 }
 
 const shortAddress = (addr: string) => (addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "");
@@ -26,9 +38,12 @@ export function AirdropCard({
   onUpdateWallet,
   onAddTask,
   onReloadTasks,
+  onDeleteTask,
+  isDragging,
 }: AirdropCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [walletInput, setWalletInput] = useState(airdrop.wallet_address || "");
   const [isEditingWallet, setIsEditingWallet] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -48,6 +63,17 @@ export function AirdropCard({
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!airdrop.url) return;
+    try {
+      await navigator.clipboard.writeText(airdrop.url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
     }
   };
 
@@ -78,15 +104,24 @@ export function AirdropCard({
   const chain = airdrop.chain || "";
   const walletAddress = airdrop.wallet_address || "";
 
+  const handleDeleteTask = (taskId: number) => {
+    void onDeleteTask(taskId, airdrop.id);
+  };
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft transition-all duration-150 hover:bg-white/[0.07]">
+    <div
+      className={clsx(
+        "rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft transition-all duration-150 hover:bg-white/[0.07]",
+        isDragging && "border-primary/40 ring-2 ring-primary/30"
+      )}
+    >
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/20">
             <Rocket className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <div className="mb-1 flex items-center gap-2 flex-wrap">
               <h3 className="text-lg font-semibold tracking-tight text-slate-100">
                 {airdrop.name}
@@ -95,18 +130,20 @@ export function AirdropCard({
               {chain && <ChainBadge chain={chain} />}
             </div>
             {airdrop.url && (
-              <a
-                href={airdrop.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-sm text-slate-400 hover:text-primary transition-colors"
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-primary"
               >
-                <Link2 className="h-3 w-3" />
-                {airdrop.url.replace(/^https?:\/\//, "")}
-              </a>
+                <Link2 className="h-3 w-3 shrink-0" />
+                <span className="block truncate">
+                  {airdrop.url.replace(/^https?:\/\//, "")}
+                </span>
+                {linkCopied && <CheckCircle2 className="h-3 w-3 text-success" />}
+              </button>
             )}
           </div>
         </div>
+
 
         {/* Kebab menu */}
         <div className="relative">
@@ -312,6 +349,13 @@ export function AirdropCard({
                   >
                     {task.title}
                   </span>
+                  <button
+                    onClick={() => handleDeleteTask(task.id)}
+                    className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white/5 hover:text-red-400"
+                    aria-label="Delete task"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               );
             })}
